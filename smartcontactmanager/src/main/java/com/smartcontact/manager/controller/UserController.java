@@ -9,13 +9,17 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import org.apache.catalina.WebResourceRoot.ArchiveIndexStrategy;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -24,13 +28,19 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
 import com.smartcontact.manager.dao.ContactRepository;
+import com.smartcontact.manager.dao.MyOrderRepository;
 import com.smartcontact.manager.dao.UserRepository;
 import com.smartcontact.manager.entities.Contact;
+import com.smartcontact.manager.entities.MyOrder;
 import com.smartcontact.manager.entities.User;
 import com.smartcontact.manager.helper.Message;
 
@@ -46,6 +56,9 @@ public class UserController {
 	@Autowired
 	private ContactRepository contactRepository;
 	
+	@Autowired
+	private MyOrderRepository myOrderRepository;
+
 	@Autowired
 	private BCryptPasswordEncoder passwordEncoder;
 
@@ -333,4 +346,49 @@ public class UserController {
 		return "redirect:/user/dashboard";
 	}
 	
+	@PostMapping("/create-order")
+	@ResponseBody
+	public String handleCreateOrder(@RequestBody Map<String, Object> data, Principal principal) throws Exception {
+
+		String userName = principal.getName();
+		User user = this.userRepository.getUserByUserName(userName);
+		
+		// System.out.println("Hey order function executed ...");
+		System.out.println(data);
+		int amt = Integer.parseInt(data.get("amount").toString());
+		System.out.println("Amount is : " + amt);
+		
+		RazorpayClient razorpayClient = new RazorpayClient("rzp_test_aioxHHMyOq8spx", "xFrh0TgszYONkcv5vWZbSyUP");
+		
+		JSONObject options = new JSONObject();
+		options.put("amount",amt*100);
+		options.put("currency","INR");
+		options.put("receipt","txn_12345");
+		
+		// Creating new order 
+		Order order = razorpayClient.Orders.create(options);
+		System.out.println(order);
+		
+		// Save orders in our DB
+		MyOrder myOrder = new MyOrder();
+		myOrder.setAmount(order.get("amount") + "");
+		myOrder.setOrderId(order.get("id"));
+		myOrder.setStatus("created");
+		myOrder.setUser(user);
+		myOrder.setReceipt(order.get("receipt"));
+		
+		this.myOrderRepository.save(myOrder);
+		
+		return order.toString();
+	}
+	
+	@PostMapping("/update-order")
+	public ResponseEntity<?> updateOrder(@RequestBody Map<String, Object> data){
+		System.out.println(data);
+		MyOrder myOrder = this.myOrderRepository.findByOrderId(data.get("order_id").toString());
+		myOrder.setStatus(data.get("status").toString());
+		myOrder.setPaymentId(data.get("payment_id").toString());
+		this.myOrderRepository.save(myOrder);
+		return ResponseEntity.ok(Map.of("msg","updated..."));
+	}
 }
