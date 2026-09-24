@@ -79,13 +79,13 @@ The application is a monolithic Spring Boot service. Thymeleaf renders HTML on t
 
 | Layer | Location | Responsibility |
 |---|---|---|
-| Web/controllers | `src/main/java/com/smartcontact/manager/controller` | Routes, request parameters, view models, redirects |
+| Web/controllers | `smartcontactmanager/src/main/java/com/smartcontact/manager/controller` | Routes, request parameters, view models, redirects |
 | Security | `.../config` | User lookup, BCrypt password verification, role checks |
 | Domain | `.../entities` | `User`, `Contact`, and `MyOrder` JPA entities |
 | Persistence | `.../dao` | Spring Data repositories and search queries |
 | Services/helpers | `.../service`, `.../helper` | SMTP delivery, flash/session messages |
-| Views | `src/main/resources/templates` | Thymeleaf pages for public, user, and admin areas |
-| Static assets | `src/main/resources/static` | CSS, JavaScript, images, and UI walkthrough assets |
+| Views | `smartcontactmanager/src/main/resources/templates` | Thymeleaf pages for public, user, and admin areas |
+| Static assets | `smartcontactmanager/src/main/resources/static` | CSS, JavaScript, images, and UI walkthrough assets |
 
 ## Application flows
 
@@ -267,7 +267,7 @@ CREATE DATABASE sma CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 ## Configuration
 
-The current application reads database settings from `src/main/resources/application.properties`. For a safe deployment, replace literal values with environment variables or an external secrets manager:
+The current application reads database settings from `smartcontactmanager/src/main/resources/application.properties`. For a safe deployment, replace literal values with environment variables or an external secrets manager:
 
 ```properties
 spring.datasource.url=${DB_URL:jdbc:mysql://localhost:3306/sma}
@@ -281,15 +281,17 @@ SMTP and Razorpay values should also be supplied through environment variables. 
 
 ## Run locally
 
-From the `smartcontactmanager` directory:
+From the repository root, enter the application directory first:
 
 ```bash
+cd smartcontactmanager
 ./mvnw spring-boot:run
 ```
 
 On Windows:
 
 ```powershell
+cd smartcontactmanager
 \.mvnw.cmd spring-boot:run
 ```
 
@@ -307,9 +309,10 @@ Useful pages include:
 
 ## Docker
 
-Build and run the application image:
+Build and run the application image from the `smartcontactmanager` directory:
 
 ```bash
+cd smartcontactmanager
 docker build -t smart-contact-manager .
 docker run --rm -p 8080:8080 \
   -e DB_URL=jdbc:mysql://host.docker.internal:3306/sma \
@@ -347,9 +350,10 @@ The included `Dockerfile` builds the Maven artifact and runs it on Java 17. The 
 
 ## Testing
 
-Run the current test suite with:
+Run the current test suite from `smartcontactmanager`:
 
 ```bash
+cd smartcontactmanager
 ./mvnw test
 ```
 
@@ -375,10 +379,10 @@ Before deployment:
 
 ## UI walkthrough assets
 
-The repository includes feature walkthrough animations under `src/main/resources/static/img/`, including:
+The repository includes feature walkthrough animations under `smartcontactmanager/src/main/resources/static/img/`, including:
 
-- [Registration](src/main/resources/static/img/signup.gif)
-- [Login](src/main/resources/static/img/login.gif)
-- [Contact management](src/main/resources/static/img/add_contact.gif)
-- [Admin panel](src/main/resources/static/img/admin_panel.gif)
-- [Payment integration](src/main/resources/static/img/payment_gateway_integration.gif)
+- [Registration](smartcontactmanager/src/main/resources/static/img/signup.gif)
+- [Login](smartcontactmanager/src/main/resources/static/img/login.gif)
+- [Contact management](smartcontactmanager/src/main/resources/static/img/add_contact.gif)
+- [Admin panel](smartcontactmanager/src/main/resources/static/img/admin_panel.gif)
+- [Payment integration](smartcontactmanager/src/main/resources/static/img/payment_gateway_integration.gif)
