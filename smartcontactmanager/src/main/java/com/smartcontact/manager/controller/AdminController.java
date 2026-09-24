@@ -16,10 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.smartcontact.manager.dao.ContactRepository;
-import com.smartcontact.manager.dao.MyOrderRepository;
 import com.smartcontact.manager.dao.UserRepository;
 import com.smartcontact.manager.entities.Contact;
-import com.smartcontact.manager.entities.MyOrder;
 import com.smartcontact.manager.entities.User;
 import com.smartcontact.manager.helper.Message;
 import com.smartcontact.manager.service.EmailService;
@@ -35,9 +33,6 @@ public class AdminController {
 
 	@Autowired
 	private ContactRepository contactRepository;
-
-	@Autowired
-	private MyOrderRepository myOrderRepository;
 
 	@Autowired
 	private EmailService emailService;
@@ -74,10 +69,6 @@ public class AdminController {
 		List<Contact> contacts = this.contactRepository.findByUser(deletedUser);
 		for (Contact contact : contacts) {
 			this.contactRepository.delete(contact);
-		}
-		List<MyOrder> myOrders = this.myOrderRepository.findByUser(deletedUser);
-		for (MyOrder myOrder : myOrders) {
-			this.myOrderRepository.delete(myOrder);
 		}
 		this.userRepository.delete(deletedUser);
 		session.setAttribute("message", new Message("User has been deleted successfully ...", "alert-success"));

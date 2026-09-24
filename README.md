@@ -1,10 +1,10 @@
 # Smart Contact Manager
 
-Smart Contact Manager is a Spring Boot web application for keeping personal contacts in one place. Users can manage their contacts and profile, while administrators can manage users and send notifications. The project also includes email OTP flows and a Razorpay payment flow.
+Smart Contact Manager is a Spring Boot web application for keeping personal contacts in one place. Users can manage their contacts and profile, while administrators can manage users and send notifications. The project also includes email OTP flows.
 
 > **Before deploying**
 >
-> The application currently has database, SMTP, and payment settings in source/configuration files. Move these values to environment variables or a secrets manager, and rotate any credentials that have previously been committed.
+> The application currently has database and SMTP settings in source/configuration files. Move these values to environment variables or a secrets manager, and rotate any credentials that have previously been committed.
 
 ## Contents
 
@@ -39,13 +39,12 @@ Smart Contact Manager is a Spring Boot web application for keeping personal cont
 - Contact profile/details view
 - Profile and profile-image updates
 - Password change
-- Razorpay order creation and payment-status update
 
 ### Administrators
 
 - Paginated administrator dashboard
 - Search and inspect users
-- Delete users and their related contacts/orders
+- Delete users and their related contacts
 - Send notification emails to users
 
 ## Architecture
@@ -60,7 +59,6 @@ flowchart LR
     Repo[Spring Data JPA repositories]
     DB[(MySQL database)]
     SMTP[Gmail SMTP]
-    Razorpay[Razorpay API]
 
     Browser --> UI
     UI --> MVC
@@ -70,10 +68,9 @@ flowchart LR
     Service --> Repo
     Repo --> DB
     Service --> SMTP
-    MVC --> Razorpay
 ```
 
-The application is a monolithic Spring Boot service. Thymeleaf renders HTML on the server, while small JavaScript helpers provide live search and payment interactions. Controllers coordinate request handling, repositories persist JPA entities, and Spring Security restricts `/user/**` and `/admin/**` routes.
+The application is a monolithic Spring Boot service. Thymeleaf renders HTML on the server, while a small JavaScript helper provides live search. Controllers coordinate request handling, repositories persist JPA entities, and Spring Security restricts `/user/**` and `/admin/**` routes.
 
 ### Layer responsibilities
 
@@ -81,7 +78,7 @@ The application is a monolithic Spring Boot service. Thymeleaf renders HTML on t
 |---|---|---|
 | Web/controllers | `smartcontactmanager/src/main/java/com/smartcontact/manager/controller` | Routes, request parameters, view models, redirects |
 | Security | `.../config` | User lookup, BCrypt password verification, role checks |
-| Domain | `.../entities` | `User`, `Contact`, and `MyOrder` JPA entities |
+| Domain | `.../entities` | `User` and `Contact` JPA entities |
 | Persistence | `.../dao` | Spring Data repositories and search queries |
 | Services/helpers | `.../service`, `.../helper` | SMTP delivery, flash/session messages |
 | Views | `smartcontactmanager/src/main/resources/templates` | Thymeleaf pages for public, user, and admin areas |
@@ -145,35 +142,11 @@ sequenceDiagram
     UserController-->>Browser: Redirect to contacts page
 ```
 
-### Payment flow
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant Browser
-    participant UserController
-    participant Razorpay
-    participant MySQL
-
-    User->>Browser: Enter donation amount
-    Browser->>UserController: POST /user/create-order
-    UserController->>Razorpay: Create INR order
-    Razorpay-->>UserController: Order id and amount
-    UserController->>MySQL: Save order with status=created
-    UserController-->>Browser: Return order data
-    Browser->>Razorpay: Open checkout
-    Razorpay-->>Browser: Payment result
-    Browser->>UserController: POST /user/update-order
-    UserController->>MySQL: Update payment id and status
-    UserController-->>Browser: Payment update response
-```
-
 ## Domain model
 
 ```mermaid
 erDiagram
     USER ||--o{ CONTACT : owns
-    USER ||--o{ MY_ORDER : creates
 
     USER {
         int user_id PK
@@ -197,18 +170,9 @@ erDiagram
         string description
         int user_id FK
     }
-    MY_ORDER {
-        long my_order_id PK
-        string order_id
-        string amount
-        string receipt
-        string status
-        string payment_id
-        int user_id FK
-    }
 ```
 
-`User.contacts` is a lazy, cascading one-to-many relationship. `Contact.user` and `MyOrder.user` are many-to-one relationships back to the owning user. Contact JSON serialization ignores the back-reference to prevent recursive serialization.
+`User.contacts` is a lazy, cascading one-to-many relationship. `Contact.user` is the many-to-one relationship back to the owning user. Contact JSON serialization ignores the back-reference to prevent recursive serialization.
 
 ## Project structure
 
@@ -225,7 +189,7 @@ smartcontactmanager/
     │   │   ├── config/       # Spring Security and UserDetails
     │   │   ├── controller/   # MVC controllers and route handlers
     │   │   ├── dao/          # Spring Data JPA repositories
-    │   │   ├── entities/     # User, Contact, MyOrder
+    │   │   ├── entities/     # User and Contact
     │   │   ├── helper/       # Session messages and helpers
     │   │   └── service/      # Email service
     │   └── resources/
@@ -246,7 +210,6 @@ smartcontactmanager/
 - BCrypt password hashing
 - Jakarta Bean Validation
 - JavaMail SMTP
-- Razorpay Java SDK
 - Maven Wrapper
 - Docker
 
@@ -257,7 +220,6 @@ smartcontactmanager/
 - Maven 3.8+ or the included Maven Wrapper
 - Docker, if using the container workflow
 - SMTP credentials for OTP and notification email
-- Razorpay test/live credentials for payment functionality
 
 Create the database before starting:
 
@@ -277,7 +239,7 @@ spring.jpa.hibernate.ddl-auto=${JPA_DDL_AUTO:validate}
 server.port=${SERVER_PORT:8080}
 ```
 
-SMTP and Razorpay values should also be supplied through environment variables. Do not commit passwords, app passwords, API secrets, or private keys.
+SMTP values should also be supplied through environment variables. Do not commit passwords, app passwords, API secrets, or private keys.
 
 ## Run locally
 
@@ -339,8 +301,6 @@ The included `Dockerfile` builds the Maven artifact and runs it on Java 17. The 
 | User | GET | `/user/delete/{cid}` | Delete contact |
 | User | GET/POST | `/user/profile`, `/user/process-update-profile` | Profile management |
 | User | POST | `/user/change-password` | Change password |
-| User | POST | `/user/create-order` | Create Razorpay order |
-| User | POST | `/user/update-order` | Persist payment result |
 | Admin | GET | `/admin/dashboard/{page}` | Paginated user administration |
 | Admin | GET | `/admin/user-profile/{uid}` | Inspect user |
 | Admin | GET | `/admin/user-delete/{uid}` | Delete user and related records |
@@ -357,13 +317,13 @@ cd smartcontactmanager
 ./mvnw test
 ```
 
-The repository currently contains a Spring context smoke test. Add controller, repository, security, payment, and service integration tests before treating the application as production-ready.
+The repository currently contains a Spring context smoke test. Add controller, repository, security, and service integration tests before treating the application as production-ready.
 
 ## Production readiness
 
 Before deployment:
 
-- [ ] Rotate all database, SMTP, and payment credentials that were ever committed.
+- [ ] Rotate all database and SMTP credentials that were ever committed.
 - [ ] Load secrets from environment variables or a managed secret store.
 - [ ] Remove `spring.jpa.show-sql=true` and use `ddl-auto=validate` or migrations.
 - [ ] Enable HTTPS and secure session cookies.
@@ -371,8 +331,7 @@ Before deployment:
 - [ ] Add login throttling, account lockout, and audit logging.
 - [ ] Verify the email-validation state is enforced during authentication; the current `UserDetailsServiceImpl` contains the validation check as commented code.
 - [ ] Validate and sanitize uploaded image names and store uploads outside the packaged classpath.
-- [ ] Verify Razorpay signatures server-side before marking orders as paid.
-- [ ] Avoid logging passwords, OTPs, SMTP debug output, or payment secrets.
+- [ ] Avoid logging passwords, OTPs, or SMTP debug output.
 - [ ] Configure structured logs, health checks, metrics, backups, and database migrations.
 - [ ] Add automated tests for authorization boundaries and data ownership.
 - [ ] Add a reverse proxy and restrict database/network access to trusted services.
@@ -385,4 +344,3 @@ The repository includes feature walkthrough animations under `smartcontactmanage
 - [Login](smartcontactmanager/src/main/resources/static/img/login.gif)
 - [Contact management](smartcontactmanager/src/main/resources/static/img/add_contact.gif)
 - [Admin panel](smartcontactmanager/src/main/resources/static/img/admin_panel.gif)
-- [Payment integration](smartcontactmanager/src/main/resources/static/img/payment_gateway_integration.gif)
